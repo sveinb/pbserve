@@ -1,0 +1,107 @@
+file= __ file_element*
+
+message_definition= "message" __ name:IDENTIFIER __ "{" __ body:message_body* __ "}" __ {return new pbserve.PMessage(name, false, body);}
+
+extension_definition= "extend" __ name:IDENTIFIER __ "{" __ body:message_body* __ "}" __ {return new pbserve.PMessage(name, true, body);}
+
+message_body= named_element / member_definition / extension_declaration
+
+extension_declaration=
+  "extensions" __ from:CONSTANT __ "to" __ to:CONSTANT __ ";" __ {return {from:from, to:to};}
+  / "extensions" __ from:CONSTANT __ "to" __ "max" __ ";" __ {return {from:from, to:(1<<29)-1};}
+
+member_specifier= "optional" __ {return "optional";}
+                / "required" __ {return "required";}
+                / "repeated" __ {return "repeated";}
+
+field_number= "=" __ c:CONSTANT __ {return c;}
+
+member_definition= spec:member_specifier? __ type:name __ name:IDENTIFIER __ id:field_number? __ option:line_option? __ ";" __ {
+              var ret=new pbserve.PMember(spec);
+                ret.type=type;
+                ret.name=name;
+                ret.id=id;
+                if (option)
+                  ret.addOption(option.name, option.value);
+                return ret;
+              }
+               / spec:member_specifier? __ "group" __ name:IDENTIFIER __ id:field_number __ "{" __ group:message_body* __ "}" __ option:line_option? __ ";" __ {
+              var ret=new pbserve.PMember(spec);
+               ret.type="group";
+               ret.name=name;
+               ret.id=id;
+               ret.group=new pbserve.PMessage("", false, group);
+               if (option)
+                 ret.addOption(option.name, option.value);
+                return ret;
+             }
+
+line_option= "[" __ name:name __ "=" __ value:value __ "]" __ {return {name:name, value:value};}
+
+value= "true" __ {return true;}
+     / "false" __ {return false;}
+     / c:CONSTANT {return c;}
+     / s:STRING_LITERAL {return s;}
+     / i:IDENTIFIER __ {return i;}
+
+CONSTANT=digits:[0-9]+ __ { return parseInt(digits.join(""), 10); }
+
+STRING_LITERAL='"' s:( a:"\\" b:[^] {return a+b;} / [^\\"] ) * '"' __ {return eval('"'+s.join("")+'"');}
+
+IDENTIFIER= a:[a-zA-Z_] b:[a-zA-Z_0-9]* {return a+b.join("");}
+
+name= n:tname {return n;}
+    / "." n:tname {return "."+n;}
+
+dottedidentifier= a:IDENTIFIER "." {return a+".";}
+
+tname=  a:dottedidentifier* b:IDENTIFIER __ {return a.join("")+b;}
+
+enum_definition= "enum" __ name:IDENTIFIER __ "{" __ body:enum_value* __ "}" __ {return new pbserve.PEnum(body);}
+
+enum_value=  name:IDENTIFIER __ "=" __ value:CONSTANT __ ";" __  {return {name:name, value:value};}
+
+named_element= message_definition
+             / extension_definition
+             / enum_definition
+             / service_definition
+
+service_definition= "service" __ name:IDENTIFIER __ "{" __ body:method_definition* __ "}" __ {return new pbserve.PService(name, body);}
+
+argument_types=name1:name __ name2:("," __ name __ )* {
+  var ret=[name1];
+  for (var i=0; i<name2.length; i++)
+    ret.push(name2[i][2]);
+  return ret;
+}
+
+method_definition= "rpc" __ name:IDENTIFIER __ "(" __ argumentTypes:argument_types? __ ")" __ "returns" __ "(" __ returnType:name __ ")" __ ";" __ {
+  var ret=new pbserve.PMethod();
+  ret.name=name;
+  ret.argumentTypes=argumentTypes?argumentTypes:[];
+  ret.returnType=returnType;
+  return ret;
+}
+
+package=  "package" __ name:name __ ";" __ {return name;}
+  
+option= "option" __ name:name __ "=" __ value ";" __ { return {name:name, value:value}; }
+
+importline= "import" __ file:STRING_LITERAL __ ";" __ {return file;}
+
+ws= [ \t\n]
+
+file_element=
+      element:named_element {pbserve.PName.addElement(element);}
+/  importline:importline {pbserve.PSchema.addImport(importline);}
+/  package:package {pbserve.PSchema.setNamespace(package);}
+/  option:option {pbserve.PSchema.addOption(option.name, option.value);}
+
+__ = (whiteSpace / lineTerminator / blockComment / lineComment )*
+
+whiteSpace=[\t\v\f \u00a0\ufeff];
+blockComment = "/*" (!"*/" anyCharacter)* "*/"
+lineComment = "//" (!lineTerminator anyCharacter)*
+anyCharacter=.
+lineTerminator=[\n\r]
+

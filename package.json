@@ -1,0 +1,17 @@
+{
+  "author": "Svein Berge",
+  "name": "pbserve",
+  "description": "Web service client and server using protocol buffer serialization",
+  "version": "0.1.1",
+  "repository": {
+    "url": "http://github.com/~sveinb/pbserve"
+  },
+  "dependencies": {"ws":"*",
+		   "atob":"*",
+		   "btoa":"*"},
+  "devDependencies": {},
+  "optionalDependencies": {},
+  "engines": {
+    "node": "*"
+  }
+}
