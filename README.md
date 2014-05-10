@@ -57,3 +57,5 @@ The client can be a web browser or another server. If the client is a web browse
     </script>
     
 Since websockets are symmetrical after connecting, the server can also call functions on the client. The .proto file doesn't specify which way the function call goes.
+
+It is worth noting that the client doesn't require a copy of the .proto file, only the server does. The schema is exchanged automatically and in a compact, binary form upon connection.
